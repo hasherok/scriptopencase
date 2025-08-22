@@ -24,8 +24,8 @@ app.use('/api/cases', caseRoutes);
 app.use('/api/open', openRoutes);
 app.use('/api/admin', requireAuth, adminRoutes);
 
-// Admin HTML guarded by auth
-app.get('/admin', requireAuth, requireAdmin, (_req, res) => {
+// Serve Admin HTML without server-side auth; page handles login overlay
+app.get('/admin', (_req, res) => {
   res.sendFile(path.join(process.cwd(), 'public', 'admin.html'));
 });
 
