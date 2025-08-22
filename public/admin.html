@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Panel</title>
+  <style>
+    body{font-family:Inter,system-ui,Arial;padding:24px;max-width:900px;margin:auto;background:#0b1220;color:#e6edf7}
+    h1{font-size:24px;margin-bottom:16px}
+    section{background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:16px;margin-bottom:16px}
+    label{display:block;margin:8px 0 4px}
+    input{padding:8px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e6edf7;width:220px}
+    button{padding:8px 12px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#e6edf7;cursor:pointer}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{border:1px solid #334155;padding:8px;text-align:left}
+  </style>
+</head>
+<body>
+  <h1>Admin Panel</h1>
+  <section>
+    <h2>Global Config</h2>
+    <div>
+      <label>globalProfitChanceBp (-100..100)</label>
+      <input id="gpb" type="number" value="0" />
+    </div>
+    <div>
+      <label>houseEdgeBp (0..5000)</label>
+      <input id="heb" type="number" value="500" />
+    </div>
+    <button onclick="saveConfig()">Save</button>
+  </section>
+  <section>
+    <h2>Users</h2>
+    <div id="users"></div>
+  </section>
+  <script>
+    const token = localStorage.getItem('token') || '';
+    async function load(){
+      const cfg = await fetch('/api/admin/config',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json());
+      if(cfg.config){
+        document.getElementById('gpb').value = cfg.config.globalProfitChanceBp;
+        document.getElementById('heb').value = cfg.config.houseEdgeBp;
+      }
+      const users = await fetch('/api/admin/users',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json());
+      const mount = document.getElementById('users');
+      const rows = users.users.map(function(u){
+        return '<tr>'+
+          '<td>'+u.username+'</td>'+
+          '<td>'+u.role+'</td>'+
+          '<td>'+ (u.balanceCents/100).toFixed(2) +'</td>'+
+          '<td>'+ u.profitChanceBasis +'</td>'+
+          '<td>'+
+            '<input id="bal_'+u.id+'" type="number" placeholder="amount cents" />'+
+            '<button onclick="adjBal(\''+u.id+'\')">Adjust</button> '+
+            '<input id="pb_'+u.id+'" type="number" min="-100" max="100" />'+
+            '<button onclick="setPB(\''+u.id+'\')">Set PB</button>'+
+          '</td>'+
+        '</tr>';
+      }).join('');
+      mount.innerHTML = '<table><thead><tr><th>Username</th><th>Role</th><th>Balance</th><th>ProfitBasis</th><th>Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    }
+    async function saveConfig(){
+      const globalProfitChanceBp = Number(document.getElementById('gpb').value);
+      const houseEdgeBp = Number(document.getElementById('heb').value);
+      await fetch('/api/admin/config',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({globalProfitChanceBp,houseEdgeBp})});
+      alert('Saved');
+    }
+    async function adjBal(id){
+      const amountCents = Number(document.getElementById('bal_'+id).value);
+      await fetch('/api/admin/users/'+id+'/balance',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({amountCents})});
+      load();
+    }
+    async function setPB(id){
+      const profitChanceBasis = Number(document.getElementById('pb_'+id).value);
+      await fetch('/api/admin/users/'+id+'/profit-basis',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({profitChanceBasis})});
+      load();
+    }
+    load();
+  </script>
+</body>
+</html>

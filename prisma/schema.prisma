@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  username           String    @unique
+  passwordHash       String
+  role               Role      @default(USER)
+  balanceCents       Int       @default(0)
+  profitChanceBasis  Int       @default(0) // -100..+100 basis points to adjust profit chance
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  openings           Opening[]
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Case {
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  priceCents   Int
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  contents     CaseContent[]
+  openings     Opening[]
+}
+
+model Item {
+  id           String       @id @default(cuid())
+  name         String
+  rarity       String
+  valueCents   Int
+  imageUrl     String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  cases        CaseContent[]
+  openings     Opening[]
+}
+
+model CaseContent {
+  id         String  @id @default(cuid())
+  case       Case    @relation(fields: [caseId], references: [id])
+  caseId     String
+  item       Item    @relation(fields: [itemId], references: [id])
+  itemId     String
+  weight     Int     // relative weight for selection (probability)
+}
+
+model Opening {
+  id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String
+  case         Case     @relation(fields: [caseId], references: [id])
+  caseId       String
+  item         Item     @relation(fields: [itemId], references: [id])
+  itemId       String
+  casePriceCents Int
+  itemValueCents Int
+  profit       Boolean
+  createdAt    DateTime @default(now())
+}
+
+model Config {
+  id                   Int      @id @default(1)
+  globalProfitChanceBp Int      @default(0) // -100..+100 basis points applied to everyone
+  houseEdgeBp          Int      @default(500) // 5% default house edge
+  updatedAt            DateTime @updatedAt
+}
